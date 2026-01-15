@@ -2,6 +2,7 @@ import random
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 # data generation
 class Mode:
@@ -75,7 +76,7 @@ class Neuron:
     
     def forward_pass(self, x):
         x = np.asarray(x, dtype=float)
-        x_star = np.append(x, 1.0)
+        x_star = np.append(x, -1.0)
         s = float(self.w @ x_star)
         y = float(self.phi(s))
         return y, s, x_star
@@ -96,9 +97,89 @@ class Neuron:
     # trains multiple epochs
     def train(self, X, D, eta: float = 0.01, epochs: int = 100):
         for _ in range(epochs):
-            idx = np.random.permutation(len(X))
+            idx = np.random.permutation(len(X)) # shuffle data each epoch
             for i in idx:
                 self.train_step(X[i], D[i], eta)
+
+def _activation_np(name: str, s: np.ndarray, beta: float = 1.0) -> np.ndarray:
+    if name == "heaviside":
+        return (s >= 0.0).astype(float)
+    if name == "sigmoid":
+        return 1.0 / (1.0 + np.exp(-beta * s))
+    if name == "sin":
+        return np.sin(s)
+    if name == "tanh":
+        return np.tanh(s)
+    if name == "sign":
+        return np.sign(s)
+    if name == "relu":
+        return np.maximum(0.0, s)
+    if name == "lrelu":
+        return np.where(s > 0.0, s, 0.01 * s)
+    raise ValueError(f"Unknown activation: {name}")
+
+def _default_threshold(name: str) -> float:
+    # Chosen so that (for monotone activations) the boundary is s = 0 (a half-plane).
+    return {
+        "heaviside": 0.5,
+        "sigmoid": 0.5,
+        "tanh": 0.0,
+        "sin": 0.0,     # produces multiple stripes, not half-planes
+        "relu": 0.0,
+        "lrelu": 0.0,
+        "sign": 0.5,    # class 1 only when output is +1
+    }[name]
+
+def plot_data_with_boundary(X_0, X_1, neuron, threshold: float | None = None,
+                            grid: int = 400, pad: float = 0.5):
+    X_0 = np.asarray(X_0, dtype=float)
+    X_1 = np.asarray(X_1, dtype=float)
+    X = np.vstack([X_0, X_1])
+
+    x_min, x_max = X[:, 0].min() - pad, X[:, 0].max() + pad
+    y_min, y_max = X[:, 1].min() - pad, X[:, 1].max() + pad
+
+    xx, yy = np.meshgrid(np.linspace(x_min, x_max, grid),
+                         np.linspace(y_min, y_max, grid))
+
+    # weights: [w0, w1, w_bias] and you use x_star = [x, y, -1]
+    w0, w1, w_bias = neuron.w
+    s = w0 * xx + w1 * yy - w_bias  # NOTE the minus (matches x_star bias = -1)
+
+    act = neuron.activation_name
+    if threshold is None:
+        threshold = _default_threshold(act)
+
+    # Compute predicted regions
+    if act == "heaviside":
+        Z = (s >= 0.0).astype(int)
+        boundary_field = s
+    elif act == "sign":
+        y = _activation_np(act, s, neuron.beta)
+        Z = (y > 0.0).astype(int)
+        boundary_field = s
+    else:
+        y = _activation_np(act, s, neuron.beta)
+        Z = (y >= threshold).astype(int)
+        boundary_field = y - threshold
+
+    cmap_bg = ListedColormap(["#dbe9ff", "#ffd6d6"])  # light blue / light red
+    plt.contourf(xx, yy, Z, levels=[-0.5, 0.5, 1.5], cmap=cmap_bg, alpha=0.6)
+
+    # Decision boundary (may be multiple curves for non-monotone activations like sin)
+    plt.contour(xx, yy, boundary_field, levels=[0.0], colors="k", linewidths=1.5)
+
+    plt.scatter(X_0[:, 0], X_0[:, 1], color="blue", label="Class 0", alpha=0.6)
+    plt.scatter(X_1[:, 0], X_1[:, 1], color="red", label="Class 1", alpha=0.6)
+
+    plt.legend()
+    plt.title("Data distribution + decision regions")
+    plt.xlabel("X")
+    plt.ylabel("Y")
+    plt.xlim(x_min, x_max)
+    plt.ylim(y_min, y_max)
+    plt.show()
+
 
 if __name__ == "__main__":
     # generate data
@@ -106,7 +187,6 @@ if __name__ == "__main__":
     class_1 = Group(label=1, n_modes=3, samples_per_mode=100)
     X_0 = class_0.generate_samples()
     X_1 = class_1.generate_samples()
-    plot_data(X_0, X_1)
 
     X = np.array(X_0 + X_1, dtype=float)
     D = np.array([0]*len(X_0) + [1]*len(X_1), dtype=float)
@@ -117,3 +197,5 @@ if __name__ == "__main__":
 
     print("Weights (including bias last):", neuron.w)
     print("Pred label for (0,0):", neuron.predict([0, 0]))
+
+    plot_data_with_boundary(X_0, X_1, neuron)
