@@ -1,7 +1,9 @@
 import random
-import matplotlib.pyplot as plt
+import numpy as np
 import math
+import matplotlib.pyplot as plt
 
+# data generation
 class Mode:
     def __init__(self, mean_x: float, mean_y: float, variance_x: float, variance_y: float):
         self.mean_x = mean_x
@@ -10,17 +12,23 @@ class Mode:
         self.variance_y = variance_y
     
     def sample(self, n: int):
-        return [(random.gauss(self.mean_x, self.variance_x**0.5), random.gauss(self.mean_y, self.variance_y**0.5)) for _ in range(n)]
-    
+        return [(random.gauss(self.mean_x, self.variance_x**0.5),
+                 random.gauss(self.mean_y, self.variance_y**0.5)) for _ in range(n)]    
 class Group:
-    def __init__(self, label: int, n_modes: int, samples_per_mode: int, mean_range=(-1.0, 1.0), variance_range=(0.5, 2.0)):
+    def __init__(self, label: int, n_modes: int, samples_per_mode: int,
+                  mean_range=(-1.0, 1.0), variance_range=(0.5, 2.0)):
         self.label = label
-        self.modes = [Mode(random.uniform(*mean_range), random.uniform(*mean_range), random.uniform(*variance_range), random.uniform(*variance_range)) for _ in range(n_modes)]
+        self.modes = [
+            Mode(random.uniform(*mean_range),
+                 random.uniform(*mean_range),
+                 random.uniform(*variance_range),
+                 random.uniform(*variance_range))
+            for _ in range(n_modes)]
         self.samples_per_mode = samples_per_mode
 
     def generate_samples(self):
         return [sample for mode in self.modes for sample in mode.sample(self.samples_per_mode)]
-    
+
 def plot_data(X_0, X_1):
     plt.scatter(*zip(*X_0), color='blue', label='Class 0', alpha=0.5)
     plt.scatter(*zip(*X_1), color='red', label='Class 1', alpha=0.5)
@@ -30,31 +38,82 @@ def plot_data(X_0, X_1):
     plt.ylabel('Y')
     plt.show()
 
-class_0 = Group(label=0, n_modes=3, samples_per_mode=100)
-class_1 = Group(label=1, n_modes=3, samples_per_mode=100)
 
-X_0 = class_0.generate_samples()
-X_1 = class_1.generate_samples()
-plot_data(X_0, X_1)
+# activation functions
+def heaviside(s: float) -> float:
+    return 1.0 if s >= 0.0 else 0.0
 
-def Heaviside(x):
-    return 1 if x >= 0 else 0
+def heaviside_derivative(s: float) -> float:
+    return 1.0
 
-def Heaviside_derivative(x):
-    return 1
+def sigmoid(s: float, beta: float = 1.0) -> float:
+    return 1.0 / (1.0 + math.exp(-beta * s))
 
-def sigmoid(x):
-    return 1 / (1 + math.exp(-x))
+def sigmoid_derivative(s: float, beta: float = 1.0) -> float:
+    return beta * sigmoid(s, beta) * (1.0 - sigmoid(s, beta))
 
-def sigmoid_derivative(x):
-    s = sigmoid(x)
-    return s * (1 - s)
+ACTIVATIONS = {
+    'heaviside': (heaviside, heaviside_derivative),
+    'sigmoid': (sigmoid, sigmoid_derivative)
+}
 
-class neuron:
-    def __init__(self, weights, bias):
-        self.weights = weights
-        self.bias = bias
 
-    def activate(self, x):
-        z = sum(w * xi for w, xi in zip(self.weights, x)) + self.bias
-        return sigmoid(z)
+# neuron
+class Neuron:
+    def __init__(self, n_inputs: int, activation: str = 'sigmoid', beta: float = 1.0, seed: int | None = None):
+        self.activation_name = activation
+        self.beta = beta
+        self.w = np.random.default_rng(seed).normal(loc=0.0, scale = 0.1, size=n_inputs+1)
+
+    def phi(self, s: float) -> float:
+        f, _ = ACTIVATIONS[self.activation_name]
+        return f(s, self.beta) if self.activation_name == 'sigmoid' else f(s)
+    
+    def phi_derivative(self, s: float) -> float:
+        _, f_derivative = ACTIVATIONS[self.activation_name]
+        return f_derivative(s, self.beta) if self.activation_name == 'sigmoid' else f_derivative(s)
+    
+    def forward_pass(self, x):
+        x = np.asarray(x, dtype=float)
+        x_star = np.append(x, 1.0)
+        s = float(self.w @ x_star)
+        y = float(self.phi(s))
+        return y, s, x_star
+
+    # returns predicted class for input x
+    def predict(self, x, threshold: float = 0.5) -> int:
+        y, _, _ = self.forward_pass(x)
+        return 1 if y >= threshold else 0   
+
+    # trains one epoch and returns MSE
+    def train_step(self, x, d: float, eta: float = 0.01):
+        y, s, x_star = self.forward_pass(x)
+        error = d - y
+        delta_w = eta * error * self.phi_derivative(s) * x_star
+        self.w += delta_w
+        return error**2
+    
+    # trains multiple epochs
+    def train(self, X, D, eta: float = 0.01, epochs: int = 100):
+        for _ in range(epochs):
+            idx = np.random.permutation(len(X))
+            for i in idx:
+                self.train_step(X[i], D[i], eta)
+
+if __name__ == "__main__":
+    # generate data
+    class_0 = Group(label=0, n_modes=3, samples_per_mode=100)
+    class_1 = Group(label=1, n_modes=3, samples_per_mode=100)
+    X_0 = class_0.generate_samples()
+    X_1 = class_1.generate_samples()
+    plot_data(X_0, X_1)
+
+    X = np.array(X_0 + X_1, dtype=float)
+    D = np.array([0]*len(X_0) + [1]*len(X_1), dtype=float)
+
+    # train
+    neuron = Neuron(n_inputs=2, activation="sigmoid", beta=1.0, seed=0)
+    neuron.train(X, D, eta=0.05, epochs=30)
+
+    print("Weights (including bias last):", neuron.w)
+    print("Pred label for (0,0):", neuron.predict([0, 0]))
