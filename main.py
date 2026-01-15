@@ -1,5 +1,6 @@
 import random
 import matplotlib.pyplot as plt
+import math
 
 class Mode:
     def __init__(self, mean_x: float, mean_y: float, variance_x: float, variance_y: float):
@@ -35,3 +36,25 @@ class_1 = Group(label=1, n_modes=3, samples_per_mode=100)
 X_0 = class_0.generate_samples()
 X_1 = class_1.generate_samples()
 plot_data(X_0, X_1)
+
+def Heaviside(x):
+    return 1 if x >= 0 else 0
+
+def Heaviside_derivative(x):
+    return 1
+
+def sigmoid(x):
+    return 1 / (1 + math.exp(-x))
+
+def sigmoid_derivative(x):
+    s = sigmoid(x)
+    return s * (1 - s)
+
+class neuron:
+    def __init__(self, weights, bias):
+        self.weights = weights
+        self.bias = bias
+
+    def activate(self, x):
+        z = sum(w * xi for w, xi in zip(self.weights, x)) + self.bias
+        return sigmoid(z)
