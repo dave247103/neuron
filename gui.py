@@ -6,11 +6,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.colors import ListedColormap
 
-from main import Group, Neuron
-
-
-def _sigmoid_np(s: np.ndarray, beta: float) -> np.ndarray:
-    return 1.0 / (1.0 + np.exp(-beta * s))
+from main import Group, Neuron, _activation_np, _default_threshold
 
 
 class NeuronGUI(tk.Tk):
@@ -162,7 +158,7 @@ class NeuronGUI(tk.Tk):
         self.neuron.train(self.X, self.D, eta=eta, epochs=epochs)
 
         # Compute training accuracy with activation-appropriate threshold
-        yhat = np.array([self.neuron.predict(x, threshold=0.5) for x in self.X], dtype=int)
+        yhat = np.array([self.neuron.predict(x) for x in self.X], dtype=int)
         acc = float((yhat == self.D.astype(int)).mean())
 
         self.status.config(text=f"Status: trained ({act}), training accuracy={acc:.3f}")
@@ -195,14 +191,27 @@ class NeuronGUI(tk.Tk):
             s = w0 * xx + w1 * yy - w_bias
 
             act = self.neuron.activation_name
+            threshold = _default_threshold(act)
+
+            # Half-plane cases: boundary is s=0
             if act == "heaviside":
                 Z = (s >= 0.0).astype(int)
                 boundary_field = s
+
+            elif act == "sign":
+                Z = (s > 0.0).astype(int)
+                boundary_field = s
+
+            elif act == "relu":
+                Z = (s > 0.0).astype(int)
+                boundary_field = s
+
             else:
-                # sigmoid: threshold 0.5 corresponds to s=0 (half-plane)
-                y = _sigmoid_np(s, self.neuron.beta)
-                Z = (y >= 0.5).astype(int)
-                boundary_field = y - 0.5
+                # General case: boundary is f(s)=threshold
+                y = _activation_np(act, s, self.neuron.beta)
+                Z = (y >= threshold).astype(int)
+                boundary_field = y - threshold
+
 
             cmap_bg = ListedColormap(["#dbe9ff", "#ffd6d6"])
             self.ax.contourf(xx, yy, Z, levels=[-0.5, 0.5, 1.5], cmap=cmap_bg, alpha=0.6)

@@ -66,7 +66,7 @@ def tanh_derivative(s: float) -> float:
     return 1.0 - math.tanh(s)**2
 
 def sign(s: float) -> float:
-    return 1.0 if s > 0.0 else -1.0
+    return 1.0 if s > 0.0 else -1.0 if s < 0.0 else 0.0
 
 def sign_derivative(s: float) -> float:
     return 1.0
@@ -117,9 +117,25 @@ class Neuron:
         return y, s, x_star
 
     # returns predicted class for input x
-    def predict(self, x, threshold: float = 0.5) -> int:
-        y, _, _ = self.forward_pass(x)
-        return 1 if y >= threshold else 0   
+    def predict(self, x, threshold: float | None = None) -> int:
+        y, s, _ = self.forward_pass(x)
+
+        if threshold is None:
+            threshold = {
+                "heaviside": 0.5,
+                "sigmoid": 0.5,
+                "tanh": 0.0,
+                "sin": 0.0,
+                "relu": 0.0,
+                "lrelu": 0.0,
+                "sign": 0.5,
+            }[self.activation_name]
+
+        if self.activation_name in ("sign", "relu"):
+            return 1 if s > 0.0 else 0
+
+        return 1 if y >= threshold else 0
+ 
 
     # trains one epoch and returns MSE
     def train_step(self, x, d: float, eta: float = 0.01):
@@ -190,8 +206,10 @@ def plot_data_with_boundary(X_0, X_1, neuron, threshold: float | None = None,
         Z = (s >= 0.0).astype(int)
         boundary_field = s
     elif act == "sign":
-        y = _activation_np(act, s, neuron.beta)
-        Z = (y > 0.0).astype(int)
+        Z = (s > 0.0).astype(int)
+        boundary_field = s
+    elif act == "relu":
+        Z = (s > 0.0).astype(int)
         boundary_field = s
     else:
         y = _activation_np(act, s, neuron.beta)
