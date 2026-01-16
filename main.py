@@ -53,9 +53,44 @@ def sigmoid(s: float, beta: float = 1.0) -> float:
 def sigmoid_derivative(s: float, beta: float = 1.0) -> float:
     return beta * sigmoid(s, beta) * (1.0 - sigmoid(s, beta))
 
+def sinus(s: float) -> float:
+    return math.sin(s)
+
+def sinus_derivative(s: float) -> float:
+    return math.cos(s)
+
+def tanh_act(s: float) -> float:
+    return math.tanh(s)
+
+def tanh_derivative(s: float) -> float:
+    return 1.0 - math.tanh(s)**2
+
+def sign(s: float) -> float:
+    return 1.0 if s > 0.0 else -1.0
+
+def sign_derivative(s: float) -> float:
+    return 1.0
+
+def ReLU(s: float) -> float:
+    return max(0.0, s)
+
+def ReLU_derivative(s: float) -> float:
+    return heaviside(s)
+
+def leaky_ReLU(s: float) -> float:
+    return s if s > 0.0 else 0.01 * s
+
+def leaky_ReLU_derivative(s: float) -> float:
+    return 1.0 if s > 0.0 else 0.01
+
 ACTIVATIONS = {
     'heaviside': (heaviside, heaviside_derivative),
-    'sigmoid': (sigmoid, sigmoid_derivative)
+    'sigmoid': (sigmoid, sigmoid_derivative),
+    'sin': (sinus, sinus_derivative),
+    'tanh': (tanh_act, tanh_derivative),
+    'relu': (ReLU, ReLU_derivative),
+    'lrelu': (leaky_ReLU, leaky_ReLU_derivative),
+    'sign': (sign, sign_derivative),
 }
 
 

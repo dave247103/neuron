@@ -70,7 +70,7 @@ class NeuronGUI(tk.Tk):
         ttk.Combobox(
             row,
             textvariable=self.activation_var,
-            values=["heaviside", "sigmoid"],
+            values=["heaviside", "sigmoid", "sin", "tanh", "relu", "lrelu", "sign"],
             state="readonly",
             width=12
         ).pack(side=tk.LEFT)
