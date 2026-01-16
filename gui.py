@@ -6,7 +6,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.colors import ListedColormap
 
-from main import Group, Neuron, _activation_np, _default_threshold, train_test_split
+from main import Group, Neuron, _activation_np, _default_threshold, train_test_split, f1_score_binary
 
 
 class NeuronGUI(tk.Tk):
@@ -162,12 +162,12 @@ class NeuronGUI(tk.Tk):
 
         # Evaluate on both
         yhat_train = np.array([self.neuron.predict(x) for x in X_train], dtype=int)
-        acc_train = float((yhat_train == D_train.astype(int)).mean())
+        f1_train = f1_score_binary(D_train, yhat_train, positive=1)
 
         yhat_test = np.array([self.neuron.predict(x) for x in X_test], dtype=int)
-        acc_test = float((yhat_test == D_test.astype(int)).mean())
+        f1_test = f1_score_binary(D_test, yhat_test, positive=1)
 
-        self.status.config(text=f"Status: trained ({act}), train acc={acc_train:.3f}, test acc={acc_test:.3f}")
+        self.status.config(text=f"Status: trained ({act}), train f1={f1_train:.3f}, test f1={f1_test:.3f}")
         self._redraw(show_boundary=True)
 
 

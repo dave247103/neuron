@@ -48,6 +48,16 @@ def train_test_split(X, D, test_ratio=0.2, seed=0):
     train_idx = idx[n_test:]
     return X[train_idx], D[train_idx], X[test_idx], D[test_idx]
 
+def f1_score_binary(y_true: np.ndarray, y_pred: np.ndarray, positive: int = 1) -> float:
+    y_true = np.asarray(y_true).astype(int)
+    y_pred = np.asarray(y_pred).astype(int)
+
+    tp = np.sum((y_true == positive) & (y_pred == positive))
+    fp = np.sum((y_true != positive) & (y_pred == positive))
+    fn = np.sum((y_true == positive) & (y_pred != positive))
+
+    denom = (2 * tp + fp + fn)
+    return float(0.0 if denom == 0 else (2 * tp) / denom)
 
 # activation functions
 def heaviside(s: float) -> float:
