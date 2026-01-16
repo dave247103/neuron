@@ -193,7 +193,7 @@ def _activation_np(name: str, s: np.ndarray, beta: float = 1.0) -> np.ndarray:
 
 
 def plot_data_with_boundary(X_0, X_1, neuron, threshold: float | None = None,
-                            grid: int = 400, pad: float = 0.5):
+                            grid: int = 600, pad: float = 0.5):
     X_0 = np.asarray(X_0, dtype=float)
     X_1 = np.asarray(X_1, dtype=float)
     X = np.vstack([X_0, X_1])
