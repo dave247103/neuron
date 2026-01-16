@@ -40,6 +40,15 @@ def plot_data(X_0, X_1):
     plt.show()
 
 
+def train_test_split(X, D, test_ratio=0.2, seed=0):
+    rng = np.random.default_rng(seed)
+    idx = rng.permutation(len(X))
+    n_test = int(round(test_ratio * len(X)))
+    test_idx = idx[:n_test]
+    train_idx = idx[n_test:]
+    return X[train_idx], D[train_idx], X[test_idx], D[test_idx]
+
+
 # activation functions
 def heaviside(s: float) -> float:
     return 1.0 if s >= 0.0 else 0.0
@@ -93,6 +102,17 @@ ACTIVATIONS = {
     'sign': (sign, sign_derivative),
 }
 
+def _default_threshold(name: str) -> float:
+    # Chosen so that (for monotone activations) the boundary is s = 0 (a half-plane).
+    return {
+        "heaviside": 0.5,
+        "sigmoid": 0.5,
+        "tanh": 0.0,
+        "sin": 0.0,     # produces multiple stripes, not half-planes
+        "relu": 0.0,
+        "lrelu": 0.0,
+        "sign": 0.5,    # class 1 only when output is +1
+    }[name]
 
 # neuron
 class Neuron:
@@ -120,21 +140,13 @@ class Neuron:
     def predict(self, x, threshold: float | None = None) -> int:
         y, s, _ = self.forward_pass(x)
 
-        if threshold is None:
-            threshold = {
-                "heaviside": 0.5,
-                "sigmoid": 0.5,
-                "tanh": 0.0,
-                "sin": 0.0,
-                "relu": 0.0,
-                "lrelu": 0.0,
-                "sign": 0.5,
-            }[self.activation_name]
-
         if self.activation_name in ("sign", "relu"):
-            return 1 if s > 0.0 else 0
+            return int(s > 0.0)
 
-        return 1 if y >= threshold else 0
+        if threshold is None:
+            threshold = _default_threshold(self.activation_name)
+
+        return int(y >= threshold)
  
 
     # trains one epoch and returns MSE
@@ -169,17 +181,6 @@ def _activation_np(name: str, s: np.ndarray, beta: float = 1.0) -> np.ndarray:
         return np.where(s > 0.0, s, 0.01 * s)
     raise ValueError(f"Unknown activation: {name}")
 
-def _default_threshold(name: str) -> float:
-    # Chosen so that (for monotone activations) the boundary is s = 0 (a half-plane).
-    return {
-        "heaviside": 0.5,
-        "sigmoid": 0.5,
-        "tanh": 0.0,
-        "sin": 0.0,     # produces multiple stripes, not half-planes
-        "relu": 0.0,
-        "lrelu": 0.0,
-        "sign": 0.5,    # class 1 only when output is +1
-    }[name]
 
 def plot_data_with_boundary(X_0, X_1, neuron, threshold: float | None = None,
                             grid: int = 400, pad: float = 0.5):
@@ -232,6 +233,8 @@ def plot_data_with_boundary(X_0, X_1, neuron, threshold: float | None = None,
     plt.xlim(x_min, x_max)
     plt.ylim(y_min, y_max)
     plt.show()
+
+
 
 
 if __name__ == "__main__":

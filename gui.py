@@ -6,7 +6,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.colors import ListedColormap
 
-from main import Group, Neuron, _activation_np, _default_threshold
+from main import Group, Neuron, _activation_np, _default_threshold, train_test_split
 
 
 class NeuronGUI(tk.Tk):
@@ -151,18 +151,25 @@ class NeuronGUI(tk.Tk):
             messagebox.showerror("Invalid input", "Learning rate and epochs must be positive.")
             return
 
+        # Split
+        X_train, D_train, X_test, D_test = train_test_split(self.X, self.D, test_ratio=0.2, seed=0)
+
         # Create neuron
         self.neuron = Neuron(n_inputs=2, activation=act, beta=beta, seed=0)
 
-        # Train
-        self.neuron.train(self.X, self.D, eta=eta, epochs=epochs)
+        # Train on train subset only
+        self.neuron.train(X_train, D_train, eta=eta, epochs=epochs)
 
-        # Compute training accuracy with activation-appropriate threshold
-        yhat = np.array([self.neuron.predict(x) for x in self.X], dtype=int)
-        acc = float((yhat == self.D.astype(int)).mean())
+        # Evaluate on both
+        yhat_train = np.array([self.neuron.predict(x) for x in X_train], dtype=int)
+        acc_train = float((yhat_train == D_train.astype(int)).mean())
 
-        self.status.config(text=f"Status: trained ({act}), training accuracy={acc:.3f}")
+        yhat_test = np.array([self.neuron.predict(x) for x in X_test], dtype=int)
+        acc_test = float((yhat_test == D_test.astype(int)).mean())
+
+        self.status.config(text=f"Status: trained ({act}), train acc={acc_train:.3f}, test acc={acc_test:.3f}")
         self._redraw(show_boundary=True)
+
 
     def _redraw(self, show_boundary: bool):
         self.ax.clear()
